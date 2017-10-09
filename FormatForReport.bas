@@ -1,4 +1,3 @@
-Attribute VB_Name = "Module3"
 Sub FormatForReport()
 
 'Select row of variant to be transferred
