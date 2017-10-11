@@ -1,69 +1,96 @@
-Sub FormatForReport()
+Sub Format4Report()
 
 'Select row of variant to be transferred
 Dim rng As Range
 Set rng = Selection
 
-'Extract gene
-Dim gene As String
-gene = ActiveSheet.Cells(rng.Row, 10).Text
+'Set active workbook variables
+Dim wb As Workbook
+Dim ws As Worksheet
+Set wb = ActiveWorkbook
+Set ws = ActiveSheet
 
-'Extract transcript
-Dim transcript As String, transcript_arr() As String
-transcript = ActiveSheet.Cells(rng.Row, 105).Text
-transcript_arr = Split(transcript, "|")
-transcript = transcript_arr(7)
-
-'Extract genomic coordinates
-Dim genomic_coords As String
-genomic_coords = "chr" & ActiveSheet.Cells(rng.Row, 5).Text & ":" & ActiveSheet.Cells(rng.Row, 6).Value & ActiveSheet.Cells(rng.Row, 7).Value & ">" & ActiveSheet.Cells(rng.Row, 8).Value
-
-'Extract nucleotide change
-Dim nuc_change As String
-nuc_change = ActiveSheet.Cells(rng.Row, 11).Text
-
-'Extract zygosity
-Dim zygosity As String
-zygosity = ActiveSheet.Cells(rng.Row, 13).Text
-If zygosity = "het" Then
-    zygosity = "Het"
-End If
-If zygosity = "hom" Then
-    zygosity = "Hom"
-End If
-If zygosity = "hem" Or zygosity = "hemi" Then
-    zygosity = "Hem"
-End If
-
-'Extract inheritance
-Dim inheritance As String
-If ActiveSheet.Cells(2, 14).Text = "in Father" Then
-    If ActiveSheet.Cells(rng.Row, 14).Text = "Y" Then
-        inheritance = "Pat"
-    ElseIf ActiveSheet.Cells(rng.Row, 15).Text = "Y" Then
-        inheritance = "Mat"
-    Else: inheritance = "De novo"
+'Loop through columns in row 2. If column header matches the field we want, extract its corresponding value from selected row. Column 130 set as upper limit due to duplicate "Gene" header in later columns.
+For i = 1 To 130
+    If ws.Cells(2, i) = "Chr" Then
+        Dim chrom As String
+        chrom = ws.Cells(rng.Row, i).Text
+    ElseIf ws.Cells(2, i) = "Start" Then
+        Dim start As String
+        start = ws.Cells(rng.Row, i).Text
+    ElseIf ws.Cells(2, i) = "Ref" Then
+        Dim ref As String
+        ref = ws.Cells(rng.Row, i).Text
+    ElseIf ws.Cells(2, i) = "Alt" Then
+        Dim alt As String
+        alt = ws.Cells(rng.Row, i).Text
+    ElseIf ws.Cells(2, i) = "Gene" Then
+        Dim gene As String
+        gene = ws.Cells(rng.Row, i).Text
+    ElseIf ws.Cells(2, i) = "DNA_Change|(SampleData|Source|SourceVer|Datetime|IsValid|Gene|GeneIDs|Transcript|TranscriptIDs|DNA Change|Type)" Then
+        transcript = ws.Cells(rng.Row, i).Text
+        transcript_arr = Split(transcript, "|")
+        transcript = transcript_arr(7)
+    ElseIf ws.Cells(2, i) = "Zygosity" Then
+        Dim zygosity As String
+        zygosity = ws.Cells(rng.Row, i).Text
+        'Format zygosity
+        If zygosity = "het" Then
+        zygosity = "Het"
+        ElseIf zygosity = "hom" Then
+        zygosity = "Hom"
+        ElseIf zygosity = "hem" Or zygosity = "hemi" Then
+        zygosity = "Hem"
+        End If
+    ElseIf ws.Cells(2, i) = "DNA Change" Then
+        Dim nuc_change As String
+        nuc_change = ws.Cells(rng.Row, i).Text
+    ElseIf ws.Cells(2, i) = "AA Change" Then
+        Dim prot_change As String
+        prot_change = ws.Cells(rng.Row, i).Text
+        'If no protein change (intronic variant), write "N/A"
+        If prot_change = vbNullString Then: prot_change = "N/A"
+    ElseIf ws.Cells(2, i) = "Interpretation" Then
+        Dim variant_interp As String
+        variant_interp = ws.Cells(rng.Row, i).Text
     End If
-ElseIf ActiveSheet.Cells(2, 14).Text = "in Mother" Then
-    If ActiveSheet.Cells(rng.Row, 14).Text = "Y" Then
-        inheritance = "Mat"
-    ElseIf ActiveSheet.Cells(rng.Row, 15).Text = "Y" Then
-        inheritance = "Pat"
-        Else: inheritance = "De novo"
+Next
+
+'Extract parental variant status using same loop as above
+For i = 1 To 130
+    If ws.Cells(2, i) = "in Mother" Then
+        Dim mom As String
+        mom = ws.Cells(rng.Row, i).Text
+        'If column exists and variant not inherited from mom, then mom = "N". If column doesn't exist, mom = vbNullString
+        If mom = vbNullString Then
+            mom = "N"
+        End If
+    ElseIf ws.Cells(2, i) = "in Father" Then
+        Dim dad As String
+        dad = ws.Cells(rng.Row, i).Text
+        'If column exists and variant not inherited from dad, then dad = "N". If column doesn't exist, dad = vbNullString
+        If dad = vbNullString Then
+            dad = "N"
+        End If
     End If
+Next
+
+'Inheritance logic
+If zygosity = "Hom" And mom = "Y" And dad = "Y" Then
+    inheritance = "Mat/Pat"
+ElseIf (mom = "Y" And dad = "Y") Or (mom = "N" And dad = vbNullString) Or (mom = vbNullString And dad = "N") Or (mom = vbNullString And dad = vbNullString) Then
+    inheritance = "Unk"
+ElseIf mom = "Y" Then
+    inheritance = "Mat"
+ElseIf dad = "Y" Then
+    inheritance = "Pat"
+ElseIf mom = "N" And dad = "N" Then
+    inheritance = "De novo"
 End If
-
-'Extract protein change
-Dim prot_change As String
-prot_change = ActiveSheet.Cells(rng.Row, 12).Text
-
-'Extract variant interpretation
-Dim variant_interp As String
-variant_interp = ActiveSheet.Cells(rng.Row, 16).Text
 
 'User input
 Dim response As Integer
-response = MsgBox("Gene: " & gene & vbCr & "Transcript ID: " & transcript & vbCr & "Genomic coordinates: " & genomic_coords & vbCr & "Nucleotide change: " & nuc_change & vbCr & "Zygosity: " & zygosity & vbCr & "Inheritance: " & inheritance & vbCr & "Protein change: " & prot_change & vbCr & "Variant Interpretation: " & variant_interp, Buttons:=vbYesNoCancel, Title:="Format for Report?")
+response = MsgBox("Gene: " & gene & vbCr & "Transcript ID: " & transcript & vbCr & "Genomic coordinates: " & "chr" & chrom & ":" & start & ref & ">" & alt & vbCr & "Nucleotide change: " & nuc_change & vbCr & "Zygosity: " & zygosity & vbCr & "Inheritance: " & inheritance & vbCr & "Protein change: " & prot_change & vbCr & "Variant Interpretation: " & variant_interp, Buttons:=vbYesNoCancel, Title:="Format for Report?")
 
 'If yes is clicked
 If response = 6 Then
@@ -71,16 +98,13 @@ If response = 6 Then
     omim_disease = InputBox("Please enter associated OMIM disease." & vbCr & vbCr & "e.g. Fanconi anemia, complementation group C")
     omim_inheritance = InputBox("Please enter disease associated inheritance pattern." & vbCr & vbCr & "e.g. AD, AR, XLD, XLR")
     omim_id = InputBox("Please enter OMIM disease ID." & vbCr & vbCr & "e.g. 227645")
-    'Set workbook and worksheet variables
-    Dim wb As Workbook, ws As Worksheet, LastRow As Integer
-    Set wb = ActiveWorkbook
-    Set ws = wb.Sheets(1)
     'Calculate last row in active sheet
-    LastRow = ActiveWorkbook.Sheets(1).Cells(Rows.Count, 9).End(xlUp).Row
+    Dim LastRow As Integer
+    LastRow = ws.Cells(Rows.Count, 9).End(xlUp).Row
     'Write data to bottom of active sheet
     ws.Cells(LastRow + 2, 16).Value = gene & " (" & transcript & ")"
     ws.Cells(LastRow + 2, 16).Characters(1, Len(gene)).Font.Italic = True
-    ws.Cells(LastRow + 2, 17).Value = genomic_coords
+    ws.Cells(LastRow + 2, 17).Value = "chr" & chrom & ":" & start & ref & ">" & alt
     ws.Cells(LastRow + 2, 18).Value = nuc_change
     ws.Cells(LastRow + 2, 19).Value = zygosity & "/" & inheritance
     ws.Cells(LastRow + 2, 20).Value = prot_change
@@ -89,4 +113,5 @@ If response = 6 Then
     ws.Range(ws.Cells(LastRow + 2, 16), ws.Cells(LastRow + 2, 22)).Copy
     MsgBox "Variant details copied to clipboard. Please paste directly into report table."
 End If
+
 End Sub
