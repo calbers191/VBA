@@ -1,5 +1,4 @@
-Attribute VB_Name = "Module4"
-Sub Move2Sanger()
+Sub MoveToSanger()
 
 'Select row of variant to be transferred
 Dim rng As Range
