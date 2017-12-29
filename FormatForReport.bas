@@ -1,4 +1,4 @@
-Sub FormatForReport()
+ub FormatForReport()
 
 'Select row of variant to be transferred
 Dim rng As Range
